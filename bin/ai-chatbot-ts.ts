@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import 'source-map-support/register';
-import * as cdk from 'aws-cdk-lib';
-import { AiChatbotTsStack } from '../lib/ai-chatbot-ts-stack';
+import 'source-map-support/register'
+import * as cdk from 'aws-cdk-lib'
+import { WhatsAppStack } from '../app/whatsapp/iac/stack'
 
-const app = new cdk.App();
-const tenant = app.node.tryGetContext('tenant');
+const app = new cdk.App()
+const tenant = app.node.tryGetContext('tenant')
 
-new AiChatbotTsStack(app, ['chatbot-ai', tenant].join('-'), {});
+new WhatsAppStack(app, ['chatbot-ai', tenant].join('-'), {})
