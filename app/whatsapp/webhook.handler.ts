@@ -32,7 +32,7 @@ export async function handler(event: any) {
       MessageDeduplicationId: randomUUID(),
     })
 
-    await client.send(command as any)
+    await client.send(command)
   }
 
   return 'nothing to see here'
