@@ -9,4 +9,4 @@ TENANT=$1
 
 echo "Deploying to tenant $TENANT"
 
-cdk deploy --context tenant=$TENANT
+cdk deploy --context tenant="$TENANT" --all

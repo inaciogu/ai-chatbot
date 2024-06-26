@@ -10,6 +10,7 @@ export class AIStack extends BaseStack {
     })
 
     this.createDynamoDb()
-    this.createEventHandlingFunction('apps/ai/ai.handler.ts')
+    const events = this.createEventHandlingFunction('apps/ai/ai.handler.ts')
+    this.createPubSubForEventHandling(events)
   }
 }

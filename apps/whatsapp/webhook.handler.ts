@@ -1,4 +1,4 @@
-import { PublishCommand, SNS } from '@aws-sdk/client-sns'
+import { PublishCommand, SNSClient } from '@aws-sdk/client-sns'
 import { randomUUID } from 'node:crypto'
 
 export async function handler(event: any) {
@@ -23,13 +23,11 @@ export async function handler(event: any) {
 
   // webhook event handling
   if (httpMethod === 'POST') {
-    const client = new SNS()
+    const client = new SNSClient()
 
     const command = new PublishCommand({
       Message: event.body,
       TopicArn: process.env.TOPIC_ARN,
-      MessageGroupId: 'whatsapp-messages',
-      MessageDeduplicationId: randomUUID(),
     })
 
     await client.send(command)

@@ -1,4 +1,4 @@
-import { CfnOutput, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib'
+import { RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import {
   AttributeType,
@@ -7,6 +7,7 @@ import {
   Table,
 } from 'aws-cdk-lib/aws-dynamodb'
 import * as lambda from 'aws-cdk-lib/aws-lambda-nodejs'
+import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
 import {
   FunctionUrlAuthType,
   HttpMethod,
@@ -14,9 +15,9 @@ import {
 } from 'aws-cdk-lib/aws-lambda'
 import { Topic } from 'aws-cdk-lib/aws-sns'
 import { Queue } from 'aws-cdk-lib/aws-sqs'
-import { IGrantable } from 'aws-cdk-lib/aws-iam'
 import { SqsSubscription } from 'aws-cdk-lib/aws-sns-subscriptions'
-import { NodejsFunction } from 'aws-cdk-lib/aws-lambda-nodejs'
+import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
+import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs'
 
 export type BaseStackProps = StackProps & {
   serviceName: string
@@ -59,7 +60,7 @@ export class BaseStack extends Stack {
       },
     })
 
-    const { url } = handler.addFunctionUrl({
+    handler.addFunctionUrl({
       cors: {
         allowedMethods: [HttpMethod.GET, HttpMethod.POST],
         allowedHeaders: ['*'],
@@ -68,47 +69,36 @@ export class BaseStack extends Stack {
       authType: FunctionUrlAuthType.NONE,
       invokeMode: InvokeMode.BUFFERED,
     })
-
-    new CfnOutput(this, 'AiChatbotTsFunctionArn', {
-      value: url,
-    })
-
-    const { topic } = this.createPubSubForWebhook(handler)
-
-    handler.addEnvironment('TOPIC_ARN', topic.topicArn)
-
-    return handler
   }
 
   public createEventHandlingFunction(entry: string) {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
 
-    const handler = new NodejsFunction(this, `${id}-event-handler`, {
+    return new NodejsFunction(this, `${id}-event-handler`, {
       entry,
       handler: 'handler',
       functionName: `${this.props.serviceName}-events-${tenant}`,
       environment: {
         TENANT: tenant,
       },
+      logGroup: new LogGroup(this, `${this.props.serviceName}-events-lambda`, {
+        logGroupName: `/aws/lambda/${this.props.serviceName}-events-${tenant}`,
+        removalPolicy: RemovalPolicy.DESTROY,
+        retention: RetentionDays.TWO_MONTHS,
+      }),
     })
-
-    const { topic } = this.createPubSubForEventHandling(handler)
-
-    handler.addEnvironment('TOPIC_ARN', topic.topicArn)
-
-    return handler
   }
 
-  private createPubSubForEventHandling(grantee: IGrantable) {
+  public createPubSubForEventHandling(grantee: NodejsFunction) {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
 
-    const topic = new Topic(this, `${id}-topic`, {
+    const topic = new Topic(this, `${id}-ai-communication-topic`, {
       topicName: `${this.props.serviceName}-event-${tenant}-topic`,
     })
 
-    const queue = new Queue(this, `${id}-queue`, {
+    const queue = new Queue(this, `${id}-ai-communication-queue`, {
       queueName: `${this.props.serviceName}-events-${tenant}-queue`,
     })
 
@@ -118,13 +108,19 @@ export class BaseStack extends Stack {
     topic.addSubscription(
       new SqsSubscription(queue, {
         rawMessageDelivery: true,
+        filterPolicy: {
+          service: { conditions: [this.props.serviceName] },
+        },
       }),
     )
+
+    grantee.addEventSource(new SqsEventSource(queue))
+    grantee.addEnvironment('TOPIC_ARN', topic.topicArn)
 
     return { topic, queue }
   }
 
-  private createPubSubForWebhook(grantee: IGrantable) {
+  public createPubSubForWebhook(grantee: NodejsFunction) {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
 
@@ -144,6 +140,8 @@ export class BaseStack extends Stack {
         rawMessageDelivery: true,
       }),
     )
+
+    grantee.addEventSource(new SqsEventSource(queue))
 
     return { topic, queue }
   }
