@@ -18,12 +18,16 @@ import { Queue } from 'aws-cdk-lib/aws-sqs'
 import { SqsSubscription } from 'aws-cdk-lib/aws-sns-subscriptions'
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs'
+import { PubSub } from './pub-sub'
 
 export type BaseStackProps = StackProps & {
   serviceName: string
+  withPubSub: boolean
 }
 
 export class BaseStack extends Stack {
+  pubsub: PubSub
+
   constructor(
     scope: Construct,
     id: string,
@@ -54,7 +58,7 @@ export class BaseStack extends Stack {
     const handler = new lambda.NodejsFunction(this, `${id}-webhook`, {
       entry,
       handler: 'handler',
-      functionName: `whatsAppWebhookIntegration-${tenant}`,
+      functionName: `${this.props.serviceName}-webhook-${tenant}`,
       environment: {
         TENANT: tenant,
       },
