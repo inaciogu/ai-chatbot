@@ -8,9 +8,5 @@ export class AIStack extends BaseStack {
       ...props,
       serviceName: 'ai',
     })
-
-    this.createDynamoDb()
-    const events = this.createEventHandlingFunction('apps/ai/ai.handler.ts')
-    this.createPubSubForEventHandling(events)
   }
 }

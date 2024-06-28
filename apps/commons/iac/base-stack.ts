@@ -1,4 +1,4 @@
-import { RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib'
+import { Duration, RemovalPolicy, Stack, StackProps } from 'aws-cdk-lib'
 import { Construct } from 'constructs'
 import {
   AttributeType,
@@ -14,7 +14,7 @@ import {
   InvokeMode,
 } from 'aws-cdk-lib/aws-lambda'
 import { Topic } from 'aws-cdk-lib/aws-sns'
-import { Queue } from 'aws-cdk-lib/aws-sqs'
+import { IQueue, Queue } from 'aws-cdk-lib/aws-sqs'
 import { SqsSubscription } from 'aws-cdk-lib/aws-sns-subscriptions'
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs'
@@ -22,7 +22,7 @@ import { PubSub } from './pub-sub'
 
 export type BaseStackProps = StackProps & {
   serviceName: string
-  withPubSub: boolean
+  withWebhook?: boolean
 }
 
 export class BaseStack extends Stack {
@@ -34,6 +34,16 @@ export class BaseStack extends Stack {
     private props: BaseStackProps,
   ) {
     super(scope, id, props)
+    this.pubsub = new PubSub(this, `${id}-pubsub`, {
+      serviceName: props.serviceName,
+    })
+    this.createDynamoDb()
+    if (props.withWebhook) {
+      this.createWebhookFunction(`apps/${props.serviceName}/webhook.handler.ts`)
+    }
+    this.createEventHandlingFunction(
+      `apps/${props.serviceName}/${props.serviceName}.handler.ts`,
+    )
   }
 
   public createDynamoDb() {
@@ -61,6 +71,7 @@ export class BaseStack extends Stack {
       functionName: `${this.props.serviceName}-webhook-${tenant}`,
       environment: {
         TENANT: tenant,
+        TOPIC_ARN: this.pubsub.topicArn,
       },
     })
 
@@ -79,12 +90,13 @@ export class BaseStack extends Stack {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
 
-    return new NodejsFunction(this, `${id}-event-handler`, {
+    const lambda = new NodejsFunction(this, `${id}-event-handler`, {
       entry,
       handler: 'handler',
       functionName: `${this.props.serviceName}-events-${tenant}`,
       environment: {
         TENANT: tenant,
+        TOPIC_ARN: this.pubsub.topicArn,
       },
       logGroup: new LogGroup(this, `${this.props.serviceName}-events-lambda`, {
         logGroupName: `/aws/lambda/${this.props.serviceName}-events-${tenant}`,
@@ -92,61 +104,23 @@ export class BaseStack extends Stack {
         retention: RetentionDays.TWO_MONTHS,
       }),
     })
+
+    this.createPubSubForEvents(lambda)
   }
 
-  public createPubSubForEventHandling(grantee: NodejsFunction) {
+  private createPubSubForEvents(lambda: NodejsFunction) {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
-
-    const topic = new Topic(this, `${id}-ai-communication-topic`, {
-      topicName: `${this.props.serviceName}-event-${tenant}-topic`,
-    })
-
-    const queue = new Queue(this, `${id}-ai-communication-queue`, {
-      queueName: `${this.props.serviceName}-events-${tenant}-queue`,
-    })
-
-    topic.grantPublish(grantee)
-    queue.grantConsumeMessages(grantee)
-
-    topic.addSubscription(
-      new SqsSubscription(queue, {
-        rawMessageDelivery: true,
-        filterPolicy: {
-          service: { conditions: [this.props.serviceName] },
-        },
-      }),
-    )
-
-    grantee.addEventSource(new SqsEventSource(queue))
-    grantee.addEnvironment('TOPIC_ARN', topic.topicArn)
-
-    return { topic, queue }
-  }
-
-  public createPubSubForWebhook(grantee: NodejsFunction) {
-    const tenant = this.node.getContext('tenant')
-    const id = this.node.id
-
-    const topic = new Topic(this, `${id}-topic`, {
-      topicName: `${this.props.serviceName}-message-${tenant}-topic`,
-    })
 
     const queue = new Queue(this, `${id}-queue`, {
-      queueName: `${this.props.serviceName}-webhook-${tenant}-queue`,
+      queueName: `${this.props.serviceName}-queue-${tenant}.fifo`,
+      visibilityTimeout: Duration.seconds(30),
+      retentionPeriod: Duration.days(14),
+      fifo: true,
     })
 
-    topic.grantPublish(grantee)
-    queue.grantConsumeMessages(grantee)
+    this.pubsub.subscribe(queue)
 
-    topic.addSubscription(
-      new SqsSubscription(queue, {
-        rawMessageDelivery: true,
-      }),
-    )
-
-    grantee.addEventSource(new SqsEventSource(queue))
-
-    return { topic, queue }
+    lambda.addEventSource(new SqsEventSource(queue))
   }
 }

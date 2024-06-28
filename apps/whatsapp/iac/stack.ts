@@ -7,14 +7,7 @@ export class WhatsAppStack extends BaseStack {
     super(scope, id, {
       ...props,
       serviceName: 'whatsapp',
+      withWebhook: true,
     })
-
-    this.createDynamoDb()
-    this.createWebhookFunction('apps/whatsapp/webhook.handler.ts')
-    const events = this.createEventHandlingFunction(
-      'apps/whatsapp/whatsapp.handler.ts',
-    )
-    this.createPubSubForWebhook(events)
-    this.createPubSubForEventHandling(events)
   }
 }
