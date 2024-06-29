@@ -13,12 +13,11 @@ import {
   HttpMethod,
   InvokeMode,
 } from 'aws-cdk-lib/aws-lambda'
-import { Topic } from 'aws-cdk-lib/aws-sns'
-import { IQueue, Queue } from 'aws-cdk-lib/aws-sqs'
-import { SqsSubscription } from 'aws-cdk-lib/aws-sns-subscriptions'
+import { Queue } from 'aws-cdk-lib/aws-sqs'
 import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs'
 import { PubSub } from './pub-sub'
+import { Topic } from 'aws-cdk-lib/aws-sns'
 
 export type BaseStackProps = StackProps & {
   serviceName: string
@@ -38,12 +37,12 @@ export class BaseStack extends Stack {
       serviceName: props.serviceName,
     })
     this.createDynamoDb()
-    if (props.withWebhook) {
-      this.createWebhookFunction(`apps/${props.serviceName}/webhook.handler.ts`)
-    }
     this.createEventHandlingFunction(
       `apps/${props.serviceName}/${props.serviceName}.handler.ts`,
     )
+    if (props.withWebhook) {
+      this.createWebhookFunction(`apps/${props.serviceName}/webhook.handler.ts`)
+    }
   }
 
   public createDynamoDb() {
@@ -75,6 +74,9 @@ export class BaseStack extends Stack {
       },
     })
 
+    const topic = Topic.fromTopicArn(this, `${id}-topic`, this.pubsub.topicArn)
+    topic.grantPublish(handler)
+
     handler.addFunctionUrl({
       cors: {
         allowedMethods: [HttpMethod.GET, HttpMethod.POST],
@@ -96,7 +98,6 @@ export class BaseStack extends Stack {
       functionName: `${this.props.serviceName}-events-${tenant}`,
       environment: {
         TENANT: tenant,
-        TOPIC_ARN: this.pubsub.topicArn,
       },
       logGroup: new LogGroup(this, `${this.props.serviceName}-events-lambda`, {
         logGroupName: `/aws/lambda/${this.props.serviceName}-events-${tenant}`,
@@ -106,6 +107,8 @@ export class BaseStack extends Stack {
     })
 
     this.createPubSubForEvents(lambda)
+
+    lambda.addEnvironment('TOPIC_ARN', this.pubsub.topicArn)
   }
 
   private createPubSubForEvents(lambda: NodejsFunction) {
