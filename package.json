@@ -31,6 +31,7 @@
   "dependencies": {
     "@aws-sdk/client-sns": "^3.592.0",
     "aws-cdk-lib": "2.144.0",
+    "axios": "^1.7.2",
     "constructs": "^10.0.0",
     "source-map-support": "^0.5.21"
   }

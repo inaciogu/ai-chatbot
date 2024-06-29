@@ -1,4 +1,4 @@
-export type Payload = {
+export type CommunicationMessagePayload = {
   content: string
   sender: string
   recipient: string
@@ -6,9 +6,9 @@ export type Payload = {
 }
 
 export class CommunicationMessage {
-  private readonly _payload: Payload
+  private readonly _payload: CommunicationMessagePayload
 
-  constructor(private payload: Payload) {
+  constructor(private payload: CommunicationMessagePayload) {
     this._payload = payload
   }
 

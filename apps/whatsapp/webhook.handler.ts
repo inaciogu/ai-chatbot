@@ -26,8 +26,16 @@ export async function handler(event: any) {
     const client = new SNSClient()
 
     const command = new PublishCommand({
-      Message: event.body,
+      Message: JSON.stringify({
+        source: 'webhook',
+        data: event.body,
+      }),
       TopicArn: process.env.TOPIC_ARN,
+      MessageDeduplicationId: randomUUID(),
+      MessageGroupId: 'webhook',
+      MessageAttributes: {
+        service: { DataType: 'String', StringValue: 'whatsapp' },
+      },
     })
 
     await client.send(command)
