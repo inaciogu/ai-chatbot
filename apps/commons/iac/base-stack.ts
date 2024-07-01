@@ -14,7 +14,6 @@ import {
   InvokeMode,
 } from 'aws-cdk-lib/aws-lambda'
 import { Queue } from 'aws-cdk-lib/aws-sqs'
-import { SqsEventSource } from 'aws-cdk-lib/aws-lambda-event-sources'
 import { LogGroup, RetentionDays } from 'aws-cdk-lib/aws-logs'
 import { PubSub } from './pub-sub'
 import { Topic } from 'aws-cdk-lib/aws-sns'
@@ -107,8 +106,6 @@ export class BaseStack extends Stack {
     })
 
     this.createPubSubForEvents(lambda)
-
-    lambda.addEnvironment('TOPIC_ARN', this.pubsub.topicArn)
   }
 
   private createPubSubForEvents(lambda: NodejsFunction) {
@@ -122,8 +119,6 @@ export class BaseStack extends Stack {
       fifo: true,
     })
 
-    this.pubsub.subscribe(queue)
-
-    lambda.addEventSource(new SqsEventSource(queue))
+    this.pubsub.subscribe(queue, lambda)
   }
 }

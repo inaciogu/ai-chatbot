@@ -8,14 +8,16 @@ type SendMessageInput = {
 }
 
 export class WhatsAppGateway {
-  constructor(private readonly axios: AxiosClient) {
+  private readonly axios: AxiosClient
+
+  constructor() {
     this.axios = new AxiosClient({
       baseUrl: 'https://graph.facebook.com/v18.0',
     })
   }
 
   async sendMessage(input: SendMessageInput) {
-    return this.axios.request({
+    return await this.axios.request({
       url: `/${input.phoneId}/messages`,
       method: 'POST',
       data: {
