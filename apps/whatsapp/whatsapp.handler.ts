@@ -20,14 +20,12 @@ export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
     const message: CommunicationMessagePayload = JSON.parse(record.body)
 
-    if (message.sender === 'ai') {
-      const whatsAppMessage = toWhatsAppMessage(message)
-      await whatsAppGateway.sendMessage({
-        recipient: message.recipient,
-        type: whatsAppMessage.type,
-        body: whatsAppMessage.content,
-        phoneId: 'phoneId',
-      })
-    }
+    const whatsAppMessage = toWhatsAppMessage(message)
+    await whatsAppGateway.sendMessage({
+      recipient: message.recipient,
+      type: whatsAppMessage.type,
+      body: whatsAppMessage.content,
+      phoneId: message.sender,
+    })
   }
 }

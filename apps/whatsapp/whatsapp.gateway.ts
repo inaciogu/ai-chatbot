@@ -13,6 +13,9 @@ export class WhatsAppGateway {
   constructor() {
     this.axios = new AxiosClient({
       baseUrl: 'https://graph.facebook.com/v18.0',
+      headers: {
+        Authorization: `Bearer ${process.env.WHATSAPP_API_KEY}`,
+      },
     })
   }
 
