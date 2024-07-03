@@ -4,11 +4,10 @@ import {
   CommunicationMessagePayload,
 } from '../core/message'
 import { DifyAiGateway } from './dify-ai.gateway'
-import { randomUUID } from 'node:crypto'
-import { PublishCommand, SNSClient } from '@aws-sdk/client-sns'
+import { SnsEventEmitter } from '../commons/events/sns-event-emitter'
 
 const aiGateway = new DifyAiGateway()
-const snsClient = new SNSClient()
+const eventEmitter = SnsEventEmitter.getInstance()
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
@@ -34,16 +33,9 @@ export async function handler(event: SQSEvent) {
 
     console.log('communicationMessage', communicationMessage)
 
-    const command = new PublishCommand({
-      Message: JSON.stringify(communicationMessage.toJson()),
-      TopicArn: process.env.TOPIC_ARN,
-      MessageDeduplicationId: randomUUID(),
-      MessageGroupId: 'whatsapp',
-      MessageAttributes: {
-        service: { DataType: 'String', StringValue: message.service },
-      },
+    await eventEmitter.dispatch({
+      message: communicationMessage.toJson(),
+      toService: message.service,
     })
-
-    await snsClient.send(command)
   }
 }

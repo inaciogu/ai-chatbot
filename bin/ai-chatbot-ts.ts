@@ -1,15 +1,34 @@
 #!/usr/bin/env node
 import 'source-map-support/register'
 import * as cdk from 'aws-cdk-lib'
-import { WhatsAppStack } from '../apps/whatsapp/iac/stack'
-import { AIStack } from '../apps/ai/iac/stack'
-import { CoreStack } from '../apps/core/iac/stack'
+import { resolve, join } from 'path'
+import { existsSync, readdirSync } from 'node:fs'
 
 const app = new cdk.App()
 const tenant = app.node.tryGetContext('tenant')
 
 const id = ['chatbot-ai', tenant].join('-')
+const appsDir = resolve(__dirname, '..', 'apps')
 
-new CoreStack(app, `${id}-core`, {})
-new WhatsAppStack(app, `${id}-whatsapp`, {})
-new AIStack(app, `${id}-ai`, {})
+const defineStacks = () => {
+  const services = readdirSync(appsDir, { withFileTypes: true })
+
+  services.forEach(async (service) => {
+    if (service.isDirectory()) {
+      const stackPath = join(appsDir, service.name, 'iac', 'stack.ts')
+      try {
+        if (existsSync(stackPath)) {
+          const stack = await import(stackPath)
+          new stack.default(app, `${id}-${service.name}`, {})
+        }
+      } catch (error) {
+        console.error(
+          `Erro ao carregar a stack do serviço ${service.name}:`,
+          error,
+        )
+      }
+    }
+  })
+}
+
+defineStacks()

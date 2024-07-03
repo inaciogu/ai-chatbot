@@ -1,6 +1,7 @@
 import { PublishCommand, SNSClient } from '@aws-sdk/client-sns'
 import { randomUUID } from 'node:crypto'
 import { CommunicationMessage } from '../core/message'
+import { SnsEventEmitter } from '../commons/events/sns-event-emitter'
 
 type TextMessage = {
   body: string
@@ -36,7 +37,7 @@ type WebhookPayload = {
   }[]
 }
 
-const snsClient = new SNSClient()
+const eventEmitter = SnsEventEmitter.getInstance()
 
 function mapWhatsAppMessage(message: WhatsAppMessage): string {
   const { text } = message
@@ -68,16 +69,10 @@ async function dispatchCommunicationMessage(payload: WebhookPayload) {
           contentType: message.type,
         })
 
-        const command = new PublishCommand({
-          Message: JSON.stringify(communicationMessage.toJson()),
-          TopicArn: process.env.TOPIC_ARN,
-          MessageDeduplicationId: randomUUID(),
-          MessageGroupId: 'whatsapp',
-          MessageAttributes: {
-            service: { DataType: 'String', StringValue: 'ai' },
-          },
+        await eventEmitter.dispatch({
+          message: communicationMessage.toJson(),
+          toService: 'ai',
         })
-        await snsClient.send(command)
       }
     }
   }
