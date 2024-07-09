@@ -1,5 +1,3 @@
-import { PublishCommand, SNSClient } from '@aws-sdk/client-sns'
-import { randomUUID } from 'node:crypto'
 import { CommunicationMessage } from '../core/message'
 import { SnsEventEmitter } from '../commons/events/sns-event-emitter'
 
