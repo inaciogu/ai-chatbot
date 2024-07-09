@@ -21,6 +21,8 @@ import { Topic } from 'aws-cdk-lib/aws-sns'
 export type BaseStackProps = StackProps & {
   serviceName: string
   withWebhook?: boolean
+  timeout?: number
+  memorySize?: number
 }
 
 export class BaseStack extends Stack {
@@ -103,6 +105,10 @@ export class BaseStack extends Stack {
         removalPolicy: RemovalPolicy.DESTROY,
         retention: RetentionDays.TWO_MONTHS,
       }),
+      memorySize: this.props.memorySize || 128,
+      timeout: this.props.timeout
+        ? Duration.seconds(this.props.timeout)
+        : Duration.seconds(30),
     })
 
     this.createPubSubForEvents(lambda)

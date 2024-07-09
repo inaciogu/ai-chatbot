@@ -7,6 +7,7 @@ export default class AIStack extends BaseStack {
     super(scope, id, {
       ...props,
       serviceName: 'ai',
+      memorySize: 512,
     })
   }
 }

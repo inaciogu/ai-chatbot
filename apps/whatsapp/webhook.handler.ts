@@ -37,7 +37,7 @@ type WebhookPayload = {
   }[]
 }
 
-const eventEmitter = SnsEventEmitter.getInstance()
+const eventEmitter = new SnsEventEmitter()
 
 function mapWhatsAppMessage(message: WhatsAppMessage): string {
   const { text } = message
@@ -71,6 +71,7 @@ async function dispatchCommunicationMessage(payload: WebhookPayload) {
 
         await eventEmitter.dispatch({
           message: communicationMessage.toJson(),
+          messageGroupId: 'whatsapp',
           toService: 'ai',
         })
       }

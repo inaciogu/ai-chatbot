@@ -7,7 +7,7 @@ import { DifyAiGateway } from './dify-ai.gateway'
 import { SnsEventEmitter } from '../commons/events/sns-event-emitter'
 
 const aiGateway = new DifyAiGateway()
-const eventEmitter = SnsEventEmitter.getInstance()
+const eventEmitter = new SnsEventEmitter()
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
@@ -36,6 +36,7 @@ export async function handler(event: SQSEvent) {
     await eventEmitter.dispatch({
       message: communicationMessage.toJson(),
       toService: message.service,
+      messageGroupId: 'ai',
     })
   }
 }
