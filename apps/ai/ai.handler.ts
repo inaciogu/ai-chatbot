@@ -3,28 +3,27 @@ import {
   CommunicationMessage,
   CommunicationMessagePayload,
 } from '../core/message'
-import { DifyAiGateway } from './dify-ai.gateway'
 import { SnsEventEmitter } from '../commons/events/sns-event-emitter'
+import { AiService } from './ai.service'
+import { OnetableService } from '../commons/dynamodb/onetable.service'
 
-const aiGateway = new DifyAiGateway()
 const eventEmitter = new SnsEventEmitter()
+const oneTableService = new OnetableService(
+  `ai-chatbot-ai-${process.env.TENANT}`,
+)
+const aiService = new AiService(oneTableService)
 
 export async function handler(event: SQSEvent) {
   for (const record of event.Records) {
     const message: CommunicationMessagePayload = JSON.parse(record.body)
     console.log('message', message)
 
-    const response = await aiGateway.sendChatMessage({
-      response_mode: 'blocking',
-      query: message.content,
-      user: message.recipient,
-      inputs: {},
-    })
+    const response = await aiService.generateResponse(message)
 
     console.log('response', response)
 
     const communicationMessage = new CommunicationMessage({
-      content: response.answer,
+      content: response as string,
       service: 'ai',
       sender: message.sender,
       recipient: message.recipient,

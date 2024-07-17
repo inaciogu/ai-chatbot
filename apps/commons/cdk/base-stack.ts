@@ -37,20 +37,21 @@ export class BaseStack extends Stack {
     this.pubsub = new PubSub(this, `${id}-pubsub`, {
       serviceName: props.serviceName,
     })
-    this.createDynamoDb()
-    this.createEventHandlingFunction(
+
+    const events = this.createEventHandlingFunction(
       `apps/${props.serviceName}/${props.serviceName}.handler.ts`,
     )
+    this.createDynamoDb(events)
     if (props.withWebhook) {
       this.createWebhookFunction(`apps/${props.serviceName}/webhook.handler.ts`)
     }
   }
 
-  public createDynamoDb() {
+  public createDynamoDb(lambda: NodejsFunction) {
     const tenant = this.node.getContext('tenant')
     const id = this.node.id
 
-    return new Table(this, `${id}-table`, {
+    const table = new Table(this, `${id}-table`, {
       tableName: `ai-chatbot-${this.props.serviceName}-${tenant}`,
       stream: StreamViewType.NEW_AND_OLD_IMAGES,
       billingMode: BillingMode.PAY_PER_REQUEST,
@@ -59,6 +60,8 @@ export class BaseStack extends Stack {
       timeToLiveAttribute: 'ttl',
       removalPolicy: RemovalPolicy.DESTROY,
     })
+
+    table.grantReadWriteData(lambda)
   }
 
   public createWebhookFunction(entry: string) {
@@ -112,6 +115,8 @@ export class BaseStack extends Stack {
     })
 
     this.createPubSubForEvents(lambda)
+
+    return lambda
   }
 
   private createPubSubForEvents(lambda: NodejsFunction) {
