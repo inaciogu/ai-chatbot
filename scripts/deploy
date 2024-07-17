@@ -1,12 +1,18 @@
 #!/bin/env bash
 
 if [ -z "$1" ]; then
-    echo "Usage: $0 <tenant>"
+    echo "Missing parameter: service name"
     exit 1
 fi
 
-TENANT=$1
+if [ -z "$2" ]; then
+    echo "Missing parameter: tenant"
+    exit 1
+fi
 
-echo "Deploying to tenant $TENANT"
+SERVICE=$1
+TENANT=$2
 
-cdk deploy --context tenant="$TENANT" --all
+echo "Deploying $SERVICE to tenant $TENANT"
+
+cdk deploy --context service="$SERVICE" --context tenant="$TENANT"
